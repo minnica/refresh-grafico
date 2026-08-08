@@ -1,0 +1,76 @@
+{
+  "_comment": "Perfiles de frontmatter por carpeta destino. Este archivo es EL punto de variación entre ramas/universidades: al cambiar de rama, ajusta importLine y profiles; prepare.js no se toca.",
+
+  "importLine": "{%- import \"src/_content/ulatina_general_config.njk\" as config -%}",
+
+  "_extract": "Usado por extract.js para armar el brief de cada HTML viejo.",
+  "extract": {
+    "assetBase": "https://ap-university-storage.s3.us-east-1.amazonaws.com/ulatina",
+    "iconsPath": "icons",
+    "_frameworkAssets": "Imágenes que ya ponen el header, el footer o los presets de botón. NO deben aparecer en el .md.",
+    "frameworkAssets": [
+      "icon_email_white.png",
+      "icon_phone_white.png",
+      "icon_wa_white.png",
+      "logo_ulatina_white.png",
+      "logo_ulatina_arizona.png",
+      "logo_ulatina_maestria.png",
+      "wa_green.jpg",
+      "spacer.gif"
+    ],
+    "_mergeTags": "Merge tags del ESP viejo → los de emBlue que usa el repo.",
+    "mergeTags": {
+      "nombre": "{$firstName}",
+      "programa": "{$dataPrograma}",
+      "fechainicioclases": "{$dataFechaInicioClases}"
+    },
+    "_canonicalWhatsapp": "Número vigente. Los HTML viejos traen números caducos: se sustituyen, no se copian.",
+    "canonicalWhatsapp": "50640017234"
+  },
+
+  "_textCheck": "Regla `texto` de check.js: compara el .md contra su .html de origen. `ignore` lista texto que el layout/footer ya provee y que por tanto NO debe aparecer en el .md — sin esto todo el boilerplate se reportaría como contenido perdido.",
+  "textCheck": {
+    "threshold": 0.6,
+    "minWords": 5,
+    "ignore": [
+      "derechos reservados",
+      "onlineulatina",
+      "si no deseas recibir",
+      "desuscribir",
+      "politica de privacidad",
+      "https://online.ulatina.cr/file/pdf/ULATINA%20_G_Kit_NuevosEstudiantes.pdf",
+      "todos los derechos"
+    ]
+  },
+
+  "profiles": {
+    "src/maestrias/ventas": {
+      "layout": "base.njk",
+      "headerConfig": "maestrias",
+      "footerConfig": "maestrias",
+      "isResponsive": true,
+      "permalinkBase": "maestrias/ventas/funnel"
+    },
+    "src/maestrias/retencion": {
+      "layout": "base_rt.njk",
+      "headerConfig": "maestriasrt",
+      "footerConfig": "maestrias",
+      "isResponsive": true,
+      "permalinkBase": "maestrias/retencion/permanencia"
+    },
+    "src/masters/vt": {
+      "layout": "base_masters.njk",
+      "headerConfig": "masters",
+      "footerConfig": "maestrias",
+      "isResponsive": true,
+      "permalinkBase": "masters/ventas/funnel"
+    },
+    "src/masters/rt": {
+      "layout": "base_masters_rt.njk",
+      "headerConfig": "mastersrt",
+      "footerConfig": "maestrias",
+      "isResponsive": true,
+      "permalinkBase": "masters/rt"
+    }
+  }
+}
