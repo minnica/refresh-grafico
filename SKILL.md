@@ -1,6 +1,6 @@
 ---
 name: refresh-grafico
-description: Convierte HTML de emails viejos al DSL de repositorios compatibles (11ty + Nunjucks), generando archivos .md en src/. Usar cuando el usuario pida actualizar, migrar, refrescar o maquetar piezas de correo a partir de HTML antiguos, mencione "refresh gráfico" o invoque $refresh-grafico. Cubre el lote completo, desde la preparación hasta la validación.
+description: Convierte HTML de emails viejos al DSL de repositorios compatibles (11ty + Nunjucks), generando archivos .md en src/. Usar cuando el usuario pida actualizar, migrar, refrescar o maquetar piezas de correo a partir de HTML antiguos, mencione "refresh gráfico" o invoque $refresh-grafico. Cubre el lote completo, desde la preparación hasta la validación, incluido el trabajo desatendido de lotes grandes.
 ---
 
 # Refresh gráfico de emails
@@ -28,6 +28,49 @@ Todos los scripts aceptan `--root <ruta>` y, si se omite, usan el directorio de
 trabajo actual. Pasa siempre la raíz explícita para evitar operar sobre la skill
 o sobre otro repositorio por accidente. Sustituye `<skill-dir>` y `<repo-root>`
 por rutas absolutas reales; no uses esos marcadores literalmente.
+
+## Modo desatendido
+
+Aplicar este modo cuando el usuario diga que dejará el lote trabajando, pida no
+recibir solicitudes de permiso o encargue un lote grande para completar de
+principio a fin.
+
+Una skill no puede cambiar la política de aprobaciones de la sesión. Para que no
+aparezcan diálogos de permiso, la sesión debe iniciarse externamente con
+`approval_policy = "never"` y acceso de escritura limitado al workspace. En CLI,
+el equivalente es:
+
+```bash
+codex --sandbox workspace-write --ask-for-approval never
+```
+
+No recomendar `danger-full-access`: este pipeline no lo necesita.
+
+Antes de lanzar subagentes, hacer un único preflight y confirmar que todo el
+trabajo previsto cabe dentro de estos límites:
+
+- leer los scripts y la configuración incluidos en la skill;
+- leer y escribir únicamente dentro de `<repo-root>` y directorios temporales;
+- ejecutar Node, el build ya instalado y los scripts deterministas sin red;
+- no instalar dependencias, editar la skill, escribir fuera del workspace ni
+  solicitar `sandbox_permissions=require_escalated`.
+
+Si el preflight detecta que una operación imprescindible excede esos límites,
+detenerse **antes** de repartir el lote y explicar la configuración necesaria.
+No iniciar un lote que quedará esperando una aprobación a mitad del proceso.
+
+Durante el lote:
+
+- considerar autorizada la creación y edición de los `.md` destino y los
+  artefactos generados por el pipeline dentro del repositorio activo;
+- no pedir confirmación entre emails ni entre pasos normales del pipeline;
+- si un email falla, registrar el motivo, continuar con los demás y reintentarlo
+  al terminar cuando sea solucionable sin nueva autoridad;
+- si una URL, asset o decisión de UI requiere información externa no disponible,
+  marcar ese email como pendiente y continuar; no inventar valores;
+- validar cada email y luego el lote completo;
+- al final, informar cuántos pasaron, cuáles fallaron y cuáles requieren una
+  decisión humana. No declarar éxito total mientras haya pendientes.
 
 ## El pipeline
 
