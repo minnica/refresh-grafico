@@ -10,11 +10,24 @@ repositorio activo. **No reescribir nunca el texto**: trasladarlo literalmente.
 
 ## Comprobar compatibilidad
 
-Antes de empezar, comprobar que el repositorio activo incluya
-`scripts/prepare.js`, `scripts/extract.js`, `scripts/check.js` y
-`src/_content/ulatina_general_config.njk`. Si falta alguno, detenerse y explicar
-que el proyecto no contiene el pipeline esperado; no inventar sustitutos ni
-copiar archivos desde otro proyecto.
+Los scripts pertenecen a esta skill, no al repositorio activo. Antes de empezar:
+
+1. Resuelve la ruta absoluta del directorio que contiene este `SKILL.md`; ése es
+   `<skill-dir>` en los comandos de este documento.
+2. Comprueba que la skill incluya `scripts/prepare.js`, `scripts/extract.js`,
+   `scripts/check.js` y `scripts/prepare.config.json`.
+3. Desde la raíz del repositorio activo, comprueba que exista
+   `src/_content/ulatina_general_config.njk`.
+
+El repositorio activo **no necesita una carpeta `scripts/`**. Si falta un archivo
+incluido en la skill o la configuración Nunjucks requerida en el repositorio,
+detente y explica qué falta; no inventes sustitutos ni copies los scripts al
+proyecto.
+
+Todos los scripts aceptan `--root <ruta>` y, si se omite, usan el directorio de
+trabajo actual. Pasa siempre la raíz explícita para evitar operar sobre la skill
+o sobre otro repositorio por accidente. Sustituye `<skill-dir>` y `<repo-root>`
+por rutas absolutas reales; no uses esos marcadores literalmente.
 
 ## El pipeline
 
@@ -23,14 +36,14 @@ mano ni improvises su resultado.
 
 ```bash
 # 1. Prepara los .md con frontmatter y permalink ya resueltos
-node scripts/prepare.js --dest src/maestrias/retencion
+node "<skill-dir>/scripts/prepare.js" --root "<repo-root>" --dest src/maestrias/retencion
 
 # 2. Reduce cada HTML a un brief compacto (quita el ~90% de markup)
-node scripts/extract.js --all --out .prepare/briefs
+node "<skill-dir>/scripts/extract.js" --root "<repo-root>" --all --out .prepare/briefs
 
 # 3. Convertir  ← lo único que haces tú, con este documento
 # 4. Validar
-node scripts/check.js
+node "<skill-dir>/scripts/check.js" --root "<repo-root>"
 ```
 
 `prepare.js` deja en `.prepare/manifest.json` los pares origen → destino.
@@ -53,7 +66,10 @@ emails cada uno**, en paralelo. A cada subagente dale:
 
 - las rutas de sus briefs y sus `.md` destino (del manifest),
 - esta skill,
-- la instrucción de correr `node scripts/check.js --only <archivo>` al terminar.
+- las rutas absolutas de `<skill-dir>` y `<repo-root>`,
+- la instrucción de correr
+  `node "<skill-dir>/scripts/check.js" --root "<repo-root>" --only <archivo>`
+  al terminar.
 
 Un email por subagente aísla más, pero repite el coste de arranque N veces;
 3-5 es el punto de equilibrio.
@@ -188,7 +204,7 @@ el UI-kit. Ante la duda, pregunta antes de inventar un color.
 ## Al terminar
 
 ```bash
-node scripts/check.js --only <nombre-del-archivo>
+node "<skill-dir>/scripts/check.js" --root "<repo-root>" --only <nombre-del-archivo>
 ```
 
 Debe salir sin errores. La regla `texto` compara tu `.md` contra el HTML de
@@ -197,4 +213,16 @@ origen y avisa si perdiste o inventaste contenido; trátala en serio: es la
 
 Si `check.js` marca contenido perdido que en realidad es del header o del
 footer, no lo agregues al `.md` — añádelo a `textCheck.ignore` en
-`scripts/prepare.config.json`.
+`<skill-dir>/scripts/prepare.config.json`.
+
+## Pendiente: configuración multi-repositorio
+
+`scripts/prepare.config.json` vive ahora dentro de la skill y es compartido por
+todos los repositorios donde se use. Queda pendiente diseñar una selección de
+configuración por repositorio o universidad —por ejemplo, perfiles nombrados o
+una opción `--config`— para independizar `importLine`, perfiles de frontmatter,
+assets, merge tags, textos ignorados y WhatsApp.
+
+Hasta resolverlo, antes de ejecutar el pipeline compara esa configuración con el
+repositorio activo. Si no corresponde, detente y pregunta; no modifiques el
+repositorio ni reutilices silenciosamente valores de otra universidad.

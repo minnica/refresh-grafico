@@ -1,5 +1,6 @@
 {
-  "_comment": "Perfiles de frontmatter por carpeta destino. Este archivo es EL punto de variación entre ramas/universidades: al cambiar de rama, ajusta importLine y profiles; prepare.js no se toca.",
+  "_comment": "Configuración central usada actualmente por los scripts incluidos en la skill.",
+  "_pending": "PENDIENTE: diseñar selección de configuración por repositorio/universidad (por ejemplo, perfiles nombrados o --config) antes de generalizar la skill. Hasta entonces todos los repositorios comparten estos valores y deben comprobarse antes de ejecutar el pipeline.",
 
   "importLine": "{%- import \"src/_content/ulatina_general_config.njk\" as config -%}",
 

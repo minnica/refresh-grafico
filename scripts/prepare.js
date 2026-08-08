@@ -13,10 +13,10 @@
  * lo que consume el paso de conversión.
  *
  * Uso:
- *   node scripts/prepare.js --dest src/maestrias/retencion
- *   node scripts/prepare.js --dest src/maestrias/ventas --dry
- *   node scripts/prepare.js --dest src/maestrias/retencion --permalink maestrias/retencion/funnel
- *   node scripts/prepare.js --dest src/maestrias/retencion --print
+ *   node /ruta/a/la/skill/scripts/prepare.js --root /ruta/al/repo --dest src/maestrias/retencion
+ *   node /ruta/a/la/skill/scripts/prepare.js --root /ruta/al/repo --dest src/maestrias/ventas --dry
+ *   node /ruta/a/la/skill/scripts/prepare.js --root /ruta/al/repo --dest src/maestrias/retencion --permalink maestrias/retencion/funnel
+ *   node /ruta/a/la/skill/scripts/prepare.js --root /ruta/al/repo --dest src/maestrias/retencion --print
  *
  * Sin dependencias: corre con node puro, aunque node_modules no esté instalado.
  */
@@ -24,13 +24,15 @@
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(parseArgs(process.argv.slice(2)).opts.root || process.cwd());
 const CONFIG_PATH = path.join(__dirname, 'prepare.config.json');
 const MANIFEST_PATH = path.join(ROOT, '.prepare', 'manifest.json');
 
 const HELP = `
 prepare.js — prepara el lote de .md para el flujo REFRESH GRÁFICO
 
+  --root <ruta>        Raíz del repositorio que se procesará.
+                       (default: directorio de trabajo actual)
   --dest <ruta>        Carpeta src/ donde se crean los .md.   (obligatorio)
                        Ej: src/maestrias/retencion
   --from <ruta>        Carpeta donde están los .html sueltos. (default: src)

@@ -10,10 +10,10 @@
  * errores reales encontrados en ese HTML compilado.
  *
  * Uso:
- *   node scripts/check.js
- *   node scripts/check.js --only masters
- *   node scripts/check.js --rule css
- *   node scripts/check.js --quiet
+ *   node /ruta/a/la/skill/scripts/check.js --root /ruta/al/repo
+ *   node /ruta/a/la/skill/scripts/check.js --root /ruta/al/repo --only masters
+ *   node /ruta/a/la/skill/scripts/check.js --root /ruta/al/repo --rule css
+ *   node /ruta/a/la/skill/scripts/check.js --root /ruta/al/repo --quiet
  *
  * Sale con código 1 si hay errores (los avisos no rompen).
  */
@@ -21,7 +21,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.resolve(__dirname, '..');
+function optionValue(argv, name) {
+  const i = argv.indexOf(`--${name}`);
+  return i !== -1 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : null;
+}
+
+const ROOT = path.resolve(optionValue(process.argv.slice(2), 'root') || process.cwd());
 const SRC = path.join(ROOT, 'src');
 const CONFIG_PATH = path.join(__dirname, 'prepare.config.json');
 
@@ -332,16 +337,15 @@ function collectMd(dir, acc = []) {
 
 function main() {
   const argv = process.argv.slice(2);
-  const opt = (name) => {
-    const i = argv.indexOf(`--${name}`);
-    return i !== -1 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : null;
-  };
+  const opt = (name) => optionValue(argv, name);
   const has = (name) => argv.includes(`--${name}`);
 
   if (has('help')) {
     console.log(`
 check.js — valida los .md de contenido
 
+  --root <ruta>    Raíz del repositorio que se procesará.
+                   (default: directorio de trabajo actual)
   --only <texto>   Sólo los archivos cuya ruta contenga <texto>
   --rule <id>      Sólo una regla: css | mergetag | assets | permalink |
                    frontmatter | vacio | texto
