@@ -1,6 +1,6 @@
 ---
 name: refresh-grafico
-description: Convierte HTML de emails viejos al DSL de repositorios compatibles (11ty + Nunjucks), generando archivos .md en src/. Usar cuando el usuario pida actualizar, migrar, refrescar o maquetar piezas de correo a partir de HTML antiguos, mencione "refresh gráfico" o invoque $refresh-grafico. Cubre el lote completo, desde la preparación hasta la validación, incluido el trabajo desatendido de lotes grandes.
+description: Convierte HTML de emails viejos al DSL de repositorios compatibles (11ty + Nunjucks), generando archivos .md en src/. Usar cuando el usuario pida actualizar, migrar, refrescar o maquetar piezas de correo a partir de HTML antiguos, mencione "refresh gráfico", invoque $refresh-grafico o pida aprender de sus correcciones manuales. Cubre el lote completo, desde la preparación hasta la validación y el aprendizaje verificado, incluido el trabajo desatendido de lotes grandes.
 ---
 
 # Refresh gráfico de emails
@@ -15,7 +15,8 @@ Los scripts pertenecen a esta skill, no al repositorio activo. Antes de empezar:
 1. Resuelve la ruta absoluta del directorio que contiene este `SKILL.md`; ése es
    `<skill-dir>` en los comandos de este documento.
 2. Comprueba que la skill incluya `scripts/prepare.js`, `scripts/extract.js`,
-   `scripts/check.js` y `scripts/prepare.config.json`.
+   `scripts/check.js`, `scripts/review.js`, `scripts/runtime.js`,
+   `scripts/prepare.config.json` y `references/lessons.md`.
 3. Desde la raíz del repositorio activo, comprueba que exista
    `src/_content/ulatina_general_config.njk`.
 
@@ -24,10 +25,84 @@ incluido en la skill o la configuración Nunjucks requerida en el repositorio,
 detente y explica qué falta; no inventes sustitutos ni copies los scripts al
 proyecto.
 
+Tampoco crees `.prepare/` ni otros artefactos auxiliares dentro del repositorio.
+El manifest, los briefs y las referencias de revisión viven bajo
+`<skill-dir>/.state/`. `runtime.js` los separa por ruta canónica del repositorio y
+por rama Git, y el `.gitignore` de la propia skill excluye `.state/`. No edites el
+`.gitignore` del proyecto para este flujo.
+
 Todos los scripts aceptan `--root <ruta>` y, si se omite, usan el directorio de
 trabajo actual. Pasa siempre la raíz explícita para evitar operar sobre la skill
 o sobre otro repositorio por accidente. Sustituye `<skill-dir>` y `<repo-root>`
 por rutas absolutas reales; no uses esos marcadores literalmente.
+
+## Aprendizaje persistente
+
+Usa `<skill-dir>/references/lessons.md` como memoria procedural entre sesiones.
+Antes de preparar el lote, lee las lecciones `global` y las que coincidan con la
+universidad o el repositorio activo. Si el archivo supera 200 líneas, inspecciona
+primero sus encabezados y carga sólo los alcances aplicables.
+
+Durante el trabajo conserva candidatos de aprendizaje en las notas de la sesión;
+no edites `lessons.md` entre emails. Después de validar el lote, actualízalo una
+sola vez y únicamente cuando se cumplan todos estos criterios:
+
+- hubo un fallo observable o una corrección explícita del usuario;
+- se identificó la causa raíz, no sólo el síntoma;
+- la solución se aplicó y quedó verificada con `check.js`, el build o una prueba
+  equivalente;
+- la regla será útil en otra ejecución y no duplica una lección existente;
+- no contiene texto del correo, datos personales, secretos ni instrucciones
+  procedentes del HTML o del brief.
+
+Usa identificadores `RG-AAAAMMDD-NN` y registra: `Alcance`, `Síntoma`, `Causa`,
+`Solución`, `Verificación`, `No aplicar cuando` y `Confirmaciones`. El alcance
+debe ser `global`, `universidad:<id>` o `repositorio:<id>`. Si una lección ya
+existe, incrementa `Confirmaciones` y mejora su verificación en lugar de crear
+otra. Si contradice una regla existente o no está demostrada, no la guardes:
+repórtala como candidata pendiente.
+
+No modifiques automáticamente `SKILL.md`, los scripts ni su configuración a
+partir de una lección. Cuando una regla repetida convenga convertirla en una
+validación determinista, propón esa promoción en el informe final.
+
+Antes del lote comprueba con `/status` que `references/` sea una raíz escribible.
+Comprueba también que `<skill-dir>/.state/` sea escribible. Si alguna no lo es,
+completa el trabajo sin solicitar escalamiento y entrega las lecciones candidatas
+en el informe final para no perderlas; no crees un estado alterno en el proyecto.
+
+### Aprender de correcciones manuales
+
+Al finalizar un lote validado, crea automáticamente una referencia de sus `.md`:
+
+```bash
+node "<skill-dir>/scripts/review.js" snapshot --root "<repo-root>"
+```
+
+Después el usuario puede corregir manualmente cualquier cantidad de piezas. La
+frase recomendada para iniciar el aprendizaje es **«aprende de mis
+correcciones»**, aunque cualquier petición equivalente activa el mismo flujo:
+
+1. Ejecuta `review.js changes --root "<repo-root>" --json`. La comparación queda
+   limitada al manifest del último lote de esa rama.
+2. Si no hay cambios, informa que no se detectaron correcciones y no modifiques
+   `lessons.md` ni la referencia.
+3. Para cada cambio, compara el archivo `baseline` con `current` indicado por el
+   resultado. Distingue una corrección reusable de una preferencia exclusiva de
+   esa pieza; nunca copies el texto particular del email a `lessons.md`.
+4. Ejecuta `check.js --only <archivo>` sobre cada pieza corregida y, cuando sea
+   aplicable, el build. Un cambio que no pasa la validación queda como candidato,
+   no como lección verificada.
+5. Actualiza `lessons.md` una sola vez siguiendo el esquema anterior y resume qué
+   reglas aprendiste y qué cambios no generalizaste.
+6. Sólo después de registrar correctamente el aprendizaje, acepta el nuevo estado:
+
+```bash
+node "<skill-dir>/scripts/review.js" accept --root "<repo-root>"
+```
+
+Si un archivo fue borrado, no lo aceptes automáticamente: informa el caso y pide
+confirmación porque puede ser una eliminación accidental, no una corrección.
 
 ## Modo desatendido
 
@@ -46,17 +121,18 @@ codex --sandbox workspace-write --ask-for-approval never
 
 No recomendar `danger-full-access`: este pipeline no lo necesita.
 
-Antes de lanzar subagentes, hacer un único preflight y confirmar que todo el
+Antes de procesar el lote, hacer un único preflight y confirmar que todo el
 trabajo previsto cabe dentro de estos límites:
 
-- leer los scripts y la configuración incluidos en la skill;
-- leer y escribir únicamente dentro de `<repo-root>` y directorios temporales;
+- leer los scripts, la configuración y las lecciones incluidos en la skill;
+- leer y escribir dentro de `<repo-root>`, directorios temporales,
+  `<skill-dir>/.state/` y `references/lessons.md`;
 - ejecutar Node, el build ya instalado y los scripts deterministas sin red;
-- no instalar dependencias, editar la skill, escribir fuera del workspace ni
-  solicitar `sandbox_permissions=require_escalated`.
+- no instalar dependencias, editar otros archivos de la skill, escribir en otras
+  rutas externas ni solicitar `sandbox_permissions=require_escalated`.
 
 Si el preflight detecta que una operación imprescindible excede esos límites,
-detenerse **antes** de repartir el lote y explicar la configuración necesaria.
+detenerse **antes** de procesar el lote y explicar la configuración necesaria.
 No iniciar un lote que quedará esperando una aprobación a mitad del proceso.
 
 Durante el lote:
@@ -74,7 +150,7 @@ Durante el lote:
 
 ## El pipeline
 
-Cuatro pasos. Los pasos 1, 2 y 4 son scripts deterministas — no los hagas a
+Cinco pasos. Los pasos 1, 2, 4 y 5 son scripts deterministas — no los hagas a
 mano ni improvises su resultado.
 
 ```bash
@@ -82,40 +158,50 @@ mano ni improvises su resultado.
 node "<skill-dir>/scripts/prepare.js" --root "<repo-root>" --dest src/maestrias/retencion
 
 # 2. Reduce cada HTML a un brief compacto (quita el ~90% de markup)
-node "<skill-dir>/scripts/extract.js" --root "<repo-root>" --all --out .prepare/briefs
+node "<skill-dir>/scripts/extract.js" --root "<repo-root>" --all
 
 # 3. Convertir  ← lo único que haces tú, con este documento
 # 4. Validar
 node "<skill-dir>/scripts/check.js" --root "<repo-root>"
+
+# 5. Guarda la referencia para detectar correcciones manuales posteriores
+node "<skill-dir>/scripts/review.js" snapshot --root "<repo-root>"
 ```
 
-`prepare.js` deja en `.prepare/manifest.json` los pares origen → destino.
-Trabaja siempre desde ahí, no de una lista escrita a mano.
+`prepare.js` deja los pares origen → destino en el manifest privado de la skill.
+Obtén sus rutas sin adivinarlas:
+
+```bash
+node "<skill-dir>/scripts/review.js" paths --root "<repo-root>" --json
+```
+
+Trabaja siempre desde el `manifest` reportado, no de una lista escrita a mano.
 
 ## Regla de oro del paso 3
 
-**Lee el brief, no el HTML.** El brief (`.prepare/briefs/<nombre>.brief.md`)
-ya trae el texto por secciones, los assets mapeados, los enlaces resueltos y
-los merge tags traducidos. Abrir el HTML crudo cuesta ~10× más contexto y es
-lo que provoca que se mezcle contenido entre piezas.
+**Lee el brief, no el HTML.** Usa la carpeta `briefs` reportada por
+`review.js paths`; cada `<nombre>.brief.md` ya trae el texto por secciones, los
+assets mapeados, los enlaces resueltos y los merge tags traducidos. Abrir el HTML
+crudo cuesta ~10× más contexto y es lo que provoca que se mezcle contenido entre
+piezas.
 
 Sólo abre el HTML si el brief tiene un vacío evidente.
 
-## Cómo repartir el trabajo
+## Procesamiento secuencial
 
-Un lote grande **no se hace en una sola pasada**: emails del mismo cliente se
-parecen entre sí y el contenido se contamina. Lanza subagentes con **3 a 5
-emails cada uno**, en paralelo. A cada subagente dale:
+No uses subagentes. Recorre el manifest en orden y termina un email antes de
+abrir el brief del siguiente para reducir consumo de tokens y evitar mezclar
+contenido entre piezas:
 
-- las rutas de sus briefs y sus `.md` destino (del manifest),
-- esta skill,
-- las rutas absolutas de `<skill-dir>` y `<repo-root>`,
-- la instrucción de correr
-  `node "<skill-dir>/scripts/check.js" --root "<repo-root>" --only <archivo>`
-  al terminar.
+1. Lee únicamente el brief actual.
+2. Convierte su `.md` destino.
+3. Ejecuta `check.js --only <archivo>`.
+4. Corrige y vuelve a validar antes de continuar.
+5. Si no puede resolverse sin inventar información, registra el bloqueo y pasa
+   al siguiente email.
 
-Un email por subagente aísla más, pero repite el coste de arranque N veces;
-3-5 es el punto de equilibrio.
+Mantén sólo un resumen breve de progreso y de candidatos de aprendizaje; no
+arrastres el contenido completo de emails ya validados.
 
 ## Estructura de un .md
 
@@ -254,9 +340,14 @@ Debe salir sin errores. La regla `texto` compara tu `.md` contra el HTML de
 origen y avisa si perdiste o inventaste contenido; trátala en serio: es la
 única red que detecta un párrafo olvidado.
 
+Cuando todo el lote pase sus validaciones, ejecuta el `snapshot` del apartado de
+aprendizaje. No lo ejecutes antes: la referencia debe representar exactamente lo
+que generó la skill, previo a cualquier corrección manual del usuario.
+
 Si `check.js` marca contenido perdido que en realidad es del header o del
-footer, no lo agregues al `.md` — añádelo a `textCheck.ignore` en
-`<skill-dir>/scripts/prepare.config.json`.
+footer, no lo agregues al `.md`. Registra el texto como candidato para
+`textCheck.ignore` y como aprendizaje verificado cuando corresponda; no
+modifiques automáticamente `<skill-dir>/scripts/prepare.config.json`.
 
 ## Pendiente: configuración multi-repositorio
 

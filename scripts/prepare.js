@@ -9,8 +9,8 @@
  * permalink) y el import de configuración. El cuerpo queda vacío: eso es lo
  * único que le toca hacer a la IA después.
  *
- * También emite .prepare/manifest.json con los pares origen → destino, que es
- * lo que consume el paso de conversión.
+ * También emite un manifest con los pares origen → destino. El manifest vive
+ * en el estado privado de la skill, no dentro del repositorio procesado.
  *
  * Uso:
  *   node /ruta/a/la/skill/scripts/prepare.js --root /ruta/al/repo --dest src/maestrias/retencion
@@ -23,10 +23,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const { ensureWorkspaceState, resolveWorkspaceState, writeJsonAtomic } = require('./runtime');
 
 const ROOT = path.resolve(parseArgs(process.argv.slice(2)).opts.root || process.cwd());
 const CONFIG_PATH = path.join(__dirname, 'prepare.config.json');
-const MANIFEST_PATH = path.join(ROOT, '.prepare', 'manifest.json');
+const STATE = resolveWorkspaceState(ROOT);
+const MANIFEST_PATH = STATE.manifestPath;
 
 const HELP = `
 prepare.js — prepara el lote de .md para el flujo REFRESH GRÁFICO
@@ -46,6 +48,9 @@ prepare.js — prepara el lote de .md para el flujo REFRESH GRÁFICO
   --print              Imprime las líneas "Con este X genera este Y"
                        (compatible con el flujo manual actual).
   --help               Esta ayuda.
+
+El manifest y los demás artefactos temporales se guardan bajo
+<skill-dir>/.state/, aislados por repositorio y rama.
 `;
 
 // ─── args ────────────────────────────────────────────────────────────────────
@@ -271,7 +276,10 @@ function main() {
 
   // ── manifest ──
   const manifest = {
+    schemaVersion: 2,
     generatedAt: new Date().toISOString(),
+    repoRoot: STATE.repoRoot,
+    branch: STATE.branch,
     from: rel(fromDir),
     dest: rel(destDir),
     permalinkBase,
@@ -280,8 +288,8 @@ function main() {
   };
 
   if (!dry) {
-    fs.mkdirSync(path.dirname(MANIFEST_PATH), { recursive: true });
-    fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2), 'utf8');
+    ensureWorkspaceState(STATE);
+    writeJsonAtomic(MANIFEST_PATH, manifest);
   }
 
   // ── resumen ──
