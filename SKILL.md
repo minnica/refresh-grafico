@@ -25,7 +25,8 @@ Los scripts pertenecen a esta skill, no al repositorio activo. Antes de empezar:
    `<skill-dir>` en los comandos de este documento.
 2. Comprueba que la skill incluya `scripts/prepare.js`, `scripts/extract.js`,
    `scripts/check.js`, `scripts/review.js`, `scripts/runtime.js`,
-   `scripts/prepare.config.json` y `references/lessons.md`.
+   `scripts/prepare.config.json`, `references/assets.json` y
+   `references/lessons.md`.
 3. Desde la raíz del repositorio activo, comprueba que exista
    `src/_content/ulatina_general_config.njk`.
 
@@ -196,6 +197,23 @@ piezas.
 
 Sólo abre el HTML si el brief tiene un vacío evidente.
 
+### Imágenes sin coincidencia exacta
+
+`extract.js` consulta `references/assets.json` después de buscar el nombre en el
+repositorio. Interpretar las acciones de la tabla de imágenes así:
+
+- **usar**: coincidencia exacta; usar la URL indicada;
+- **sugerir**: hay una coincidencia de nombre claramente superior; comprobar que
+  su concepto corresponda al texto de la sección y usarla si coincide;
+- **elegir**: hay dos o más candidatas cercanas; elegir sólo cuando el contexto
+  descarte claramente las demás;
+- **verificar**: no hubo coincidencia útil; conservar el email como pendiente;
+- **omitir**: la imagen pertenece al header, footer o a un preset.
+
+No elegir por color o por disponibilidad solamente. Si el significado no es
+claro, no insertar ninguna candidata ni inventar otra URL. El catálogo es de
+alcance `universidad:ulatina`; no reutilizarlo silenciosamente en otro cliente.
+
 ## Procesamiento secuencial
 
 Siguiendo la regla de agente único, recorre el manifest en orden y termina un
@@ -331,8 +349,9 @@ original dice "realicés" o "Contactanos", va tal cual.
 `$BF{programa}` → `{$dataPrograma}`, `$BF{fechainicioclases}` →
 `{$dataFechaInicioClases}`. Nunca dejes un `$BF{…}`: `markdown-it-attrs` se
 come las llaves y deja `$BF` visible en el correo.
-3. **Imágenes**: usa la columna «destino» del brief. Las marcadas **omitir** no
-van en el `.md` — las pone el layout o un preset. Nunca inventes una URL.
+3. **Imágenes**: usa la columna «destino» del brief y respeta las acciones del
+apartado «Imágenes sin coincidencia exacta». Las marcadas **omitir** no van en
+el `.md` — las pone el layout o un preset. Nunca inventes una URL.
 4. **Enlaces**: los `mailto:` y `tel:` se omiten (van en el footer). El
 WhatsApp usa el número canónico del brief, no el del HTML viejo.
 5. **Colores de fondo**: los del brief son del original. Si hay UI-kit, manda
