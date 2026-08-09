@@ -8,6 +8,15 @@ description: Convierte HTML de emails viejos al DSL de repositorios compatibles 
 Convertir HTML de correos antiguos en archivos `.md` que compilen con el DSL del
 repositorio activo. **No reescribir nunca el texto**: trasladarlo literalmente.
 
+## Regla de agente único
+
+Ejecutar siempre esta skill con el agente actual. **No crear, lanzar ni delegar
+trabajo a subagentes**, aunque el lote sea grande, el usuario pida ejecución
+desatendida o haya que validar, investigar errores o aprender correcciones.
+Procesar el manifest secuencialmente y usar scripts deterministas para contener
+el consumo de tokens. Si el lote no cabe cómodamente en el contexto, dividirlo
+en grupos internos y completar uno antes de cargar el siguiente, sin delegarlos.
+
 ## Comprobar compatibilidad
 
 Los scripts pertenecen a esta skill, no al repositorio activo. Antes de empezar:
@@ -189,9 +198,9 @@ Sólo abre el HTML si el brief tiene un vacío evidente.
 
 ## Procesamiento secuencial
 
-No uses subagentes. Recorre el manifest en orden y termina un email antes de
-abrir el brief del siguiente para reducir consumo de tokens y evitar mezclar
-contenido entre piezas:
+Siguiendo la regla de agente único, recorre el manifest en orden y termina un
+email antes de abrir el brief del siguiente para reducir consumo de tokens y
+evitar mezclar contenido entre piezas:
 
 1. Lee únicamente el brief actual.
 2. Convierte su `.md` destino.
