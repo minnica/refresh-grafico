@@ -1,6 +1,6 @@
 ---
 name: refresh-grafico
-description: Convierte HTML de emails viejos al DSL de repositorios compatibles (11ty + Nunjucks), generando archivos .md en src/. Usar cuando el usuario pida actualizar, migrar, refrescar o maquetar piezas de correo a partir de HTML antiguos, mencione "refresh gráfico", invoque $refresh-grafico o pida aprender de sus correcciones manuales. Cubre el lote completo, desde la preparación hasta la validación y el aprendizaje verificado, incluido el trabajo desatendido de lotes grandes.
+description: Convierte HTML de emails viejos al DSL de repositorios compatibles (11ty + Nunjucks), generando archivos .md en src/. Usar cuando el usuario pida actualizar, migrar, refrescar o maquetar piezas de correo a partir de HTML antiguos, mencione "refresh gráfico", invoque $refresh-grafico, incluya `Referencia:[ruta]` para tomar archivos existentes como guía visual o pida aprender de sus correcciones manuales. Cubre el lote completo, desde la preparación hasta la validación y el aprendizaje verificado, incluido el trabajo desatendido de lotes grandes.
 ---
 
 # Refresh gráfico de emails
@@ -24,9 +24,9 @@ Los scripts pertenecen a esta skill, no al repositorio activo. Antes de empezar:
 1. Resuelve la ruta absoluta del directorio que contiene este `SKILL.md`; ése es
    `<skill-dir>` en los comandos de este documento.
 2. Comprueba que la skill incluya `scripts/prepare.js`, `scripts/extract.js`,
-   `scripts/check.js`, `scripts/review.js`, `scripts/runtime.js`,
+   `scripts/format.js`, `scripts/check.js`, `scripts/review.js`, `scripts/runtime.js`,
    `scripts/prepare.config.json`, `references/assets.json` y
-   `references/lessons.md`.
+   `references/variables.md` y `references/lessons.md`.
 3. Desde la raíz del repositorio activo, comprueba que exista
    `src/_content/ulatina_general_config.njk`.
 
@@ -45,6 +45,84 @@ Todos los scripts aceptan `--root <ruta>` y, si se omite, usan el directorio de
 trabajo actual. Pasa siempre la raíz explícita para evitar operar sobre la skill
 o sobre otro repositorio por accidente. Sustituye `<skill-dir>` y `<repo-root>`
 por rutas absolutas reales; no uses esos marcadores literalmente.
+
+## Instrucciones visuales y `Referencia:[ruta]`
+
+Antes de preparar el lote, extrae del prompt las instrucciones visuales
+explícitas, incluidos los colores HEX, y cualquier referencia escrita con esta
+sintaxis (sin exigir que la ruta tenga un valor fijo):
+
+```text
+Referencia:[ruta/al/archivo-o-carpeta]
+```
+
+Acepta espacios alrededor de `Referencia:`, una ruta absoluta o una ruta
+relativa a `<repo-root>`. Conserva espacios y caracteres especiales dentro de
+los corchetes. Si aparecen varias líneas `Referencia:[...]`, procésalas en el
+orden indicado. No interpretes como referencia una ruta que no esté delimitada
+por corchetes.
+
+Resuelve y comprueba cada ruta mediante una operación de sólo lectura antes de
+convertir. Una referencia puede ser un archivo existente o una carpeta. Si es
+una carpeta, inspecciona primero sus nombres y abre sólo los archivos necesarios
+para identificar el patrón aplicable; no cargues toda la carpeta. Si la ruta no
+existe, no es legible o resulta ambigua, informa cuál falló y continúa sin esa
+referencia cuando todavía sea posible respetar las instrucciones explícitas. No
+busques en Internet ni sustituyas la referencia por otra ruta inventada.
+
+Usa los archivos referenciados como guía de maquetado: estructura de bloques,
+selección de módulos y presets, ritmo de espaciado, alineación, jerarquía y
+tratamiento visual. No copies de ellos texto, enlaces, imágenes, merge tags,
+frontmatter ni datos particulares de otra pieza. Todo el contenido del nuevo
+email debe seguir saliendo literalmente de su brief y el frontmatter generado
+por `prepare.js` debe permanecer intacto.
+
+Aplica esta precedencia cuando las fuentes difieran:
+
+1. instrucciones explícitas del usuario en el prompt, incluidos sus HEX;
+2. UI-kit o reglas obligatorias del repositorio activo;
+3. archivos indicados mediante `Referencia:[ruta]`;
+4. estilos observados en el HTML/brief original;
+5. convenciones generales de esta skill.
+
+Reproduce exactamente los HEX solicitados por el usuario, normalizando sólo la
+capitalización si el resultado es equivalente. Usa clases o presets existentes
+cuando produzcan ese mismo valor; si no, aplica el HEX en una propiedad válida
+del DSL. No reemplaces un HEX explícito por el color «más cercano» de la paleta.
+Si dos instrucciones explícitas se contradicen o un HEX no puede representarse
+con el DSL disponible, conserva la pieza como pendiente y explica el conflicto
+en vez de decidirlo silenciosamente.
+
+## Variables BF y símbolo SOH
+
+Usa `<skill-dir>/references/variables.md` como fuente de verdad para los tokens
+de personalización. `extract.js` debe detectar tanto `$BF{nombre}` como el
+formato `${BFnombre}` y sus variantes con identificador o separadores, por
+ejemplo `$BF{1#nombre}` y `${BF32#Programa}`.
+
+Resuelve el nombre así:
+
+1. elimina el identificador anterior al último `#` y los separadores iniciales;
+2. busca una coincidencia normalizada exacta en el diccionario;
+3. usa el alias histórico de `prepare.config.json` cuando exista y también
+   apunte a una entrada del diccionario;
+4. si aún no coincide, elige el nombre más cercano; en un empate, conserva el
+   orden de aparición de `variables.md`.
+
+Aplica el reemplazo al contenido del brief y registra en su tabla «Merge tags»
+el origen, el token elegido y el criterio. Copia siempre el token completo del
+diccionario. El carácter entre el namespace y el nombre es el byte SOH real
+`0x01`: no lo conviertas en las letras `SOH`, `\\x01`, un punto, un espacio ni
+otro separador. En documentación puede mostrarse como
+`{$data<SOH>Programa}`, pero ese texto explicativo nunca debe llegar al `.md`.
+
+Envuelve siempre cada variable canónica completa en negrita Markdown:
+`{$valor}` → `**{$valor}**`. Aplica esta regla a todas las variables, incluidas
+las que ya vengan en formato canónico, sin poner en negrita el texto adyacente
+ni alterar SOH. No dupliques los asteriscos si la variable ya está envuelta.
+
+No dejes ninguna variable BF ni ninguna variable canónica sin negrita en la
+pieza final. `check.js` debe tratar ambos casos como error.
 
 ## Aprendizaje persistente
 
@@ -135,6 +213,8 @@ Antes de procesar el lote, hacer un único preflight y confirmar que todo el
 trabajo previsto cabe dentro de estos límites:
 
 - leer los scripts, la configuración y las lecciones incluidos en la skill;
+- leer y ejecutar el `formatter.js` de la extensión local VT Email DSL sin
+  modificar ningún archivo de la extensión;
 - leer y escribir dentro de `<repo-root>`, directorios temporales,
   `<skill-dir>/.state/` y `references/lessons.md`;
 - ejecutar Node, el build ya instalado y los scripts deterministas sin red;
@@ -160,7 +240,7 @@ Durante el lote:
 
 ## El pipeline
 
-Cinco pasos. Los pasos 1, 2, 4 y 5 son scripts deterministas — no los hagas a
+Seis pasos. Los pasos 1, 2, 4, 5 y 6 son scripts deterministas — no los hagas a
 mano ni improvises su resultado.
 
 ```bash
@@ -171,10 +251,13 @@ node "<skill-dir>/scripts/prepare.js" --root "<repo-root>" --dest src/maestrias/
 node "<skill-dir>/scripts/extract.js" --root "<repo-root>" --all
 
 # 3. Convertir  ← lo único que haces tú, con este documento
-# 4. Validar
+# 4. Formatear con la implementación real de la extensión instalada
+node "<skill-dir>/scripts/format.js" --root "<repo-root>"
+
+# 5. Validar, incluido el formato
 node "<skill-dir>/scripts/check.js" --root "<repo-root>"
 
-# 5. Guarda la referencia para detectar correcciones manuales posteriores
+# 6. Guarda la referencia para detectar correcciones manuales posteriores
 node "<skill-dir>/scripts/review.js" snapshot --root "<repo-root>"
 ```
 
@@ -186,6 +269,23 @@ node "<skill-dir>/scripts/review.js" paths --root "<repo-root>" --json
 ```
 
 Trabaja siempre desde el `manifest` reportado, no de una lista escrita a mano.
+
+### Formato de entrega VT Email DSL
+
+Antes de procesar el lote, confirma la extensión instalada con:
+
+```bash
+node "<skill-dir>/scripts/format.js" --version
+```
+
+`format.js` debe elegir la versión instalada más reciente de
+`aplatam.vt-email-dsl` y ejecutar directamente su función
+`formatVtEmailDsl`; no imites ni reimplementes sus reglas. Formatea sólo los
+`.md` del manifest actual y usa por defecto 2 espacios, el fallback del
+formateador. Si la configuración explícita del workspace usa otra indentación,
+pasa las mismas opciones `--tab-size <n>` o `--tabs` tanto a `format.js` como a
+`check.js`. Si falta la extensión o su export, detente antes del lote.
+`check.js` debe fallar si volver a formatear cambiaría un `.md`.
 
 ## Regla de oro del paso 3
 
@@ -210,7 +310,7 @@ repositorio. Interpretar las acciones de la tabla de imágenes así:
 - **verificar**: no hubo coincidencia útil; conservar el email como pendiente;
 - **omitir**: la imagen pertenece al header, footer o a un preset.
 
-No elegir por color o por disponibilidad solamente. Si el significado no es
+Se puede elegir por color dependiendo el grado de estudio al que pertenezca  segun sea el caso(masters, maestrias, diplomados, especializaciones). Si el significado no es
 claro, no insertar ninguna candidata ni inventar otra URL. El catálogo es de
 alcance `universidad:ulatina`; no reutilizarlo silenciosamente en otro cliente.
 
@@ -222,9 +322,10 @@ evitar mezclar contenido entre piezas:
 
 1. Lee únicamente el brief actual.
 2. Convierte su `.md` destino.
-3. Ejecuta `check.js --only <archivo>`.
-4. Corrige y vuelve a validar antes de continuar.
-5. Si no puede resolverse sin inventar información, registra el bloqueo y pasa
+3. Ejecuta `format.js --only <archivo>`.
+4. Ejecuta `check.js --only <archivo>`.
+5. Corrige, vuelve a formatear y valida antes de continuar.
+6. Si no puede resolverse sin inventar información, registra el bloqueo y pasa
    al siguiente email.
 
 Mantén sólo un resumen breve de progreso y de candidatos de aprendizaje; no
@@ -345,17 +446,18 @@ Paleta: `ulatina-base #373738` · `ulatina-primary #772342` ·
 
 1. **Texto literal.** No corrijas ortografía, gramática ni voseo. Si el
 original dice "realicés" o "Contactanos", va tal cual.
-2. **Merge tags**: usa el mapeo del brief. `$BF{nombre}` → `{$firstName}`,
-`$BF{programa}` → `{$dataPrograma}`, `$BF{fechainicioclases}` →
-`{$dataFechaInicioClases}`. Nunca dejes un `$BF{…}`: `markdown-it-attrs` se
-come las llaves y deja `$BF` visible en el correo.
+2. **Merge tags**: usa exclusivamente el reemplazo ya aplicado y documentado
+en el brief a partir de `references/variables.md`. Entrega cada token como
+`**{$valor}**` y conserva intacto SOH. Nunca dejes `$BF{…}`, `${BF…}` ni una
+variable canónica sin negrita.
 3. **Imágenes**: usa la columna «destino» del brief y respeta las acciones del
 apartado «Imágenes sin coincidencia exacta». Las marcadas **omitir** no van en
 el `.md` — las pone el layout o un preset. Nunca inventes una URL.
 4. **Enlaces**: los `mailto:` y `tel:` se omiten (van en el footer). El
 WhatsApp usa el número canónico del brief, no el del HTML viejo.
-5. **Colores de fondo**: los del brief son del original. Si hay UI-kit, manda
-el UI-kit. Ante la duda, pregunta antes de inventar un color.
+5. **Colores de fondo**: los del brief son del original. Aplica la precedencia
+del apartado «Instrucciones visuales y `Referencia:[ruta]`»; ante la duda,
+pregunta antes de inventar un color.
 6. **Header y footer** no se escriben: los pone el layout.
 
 ## Al terminar

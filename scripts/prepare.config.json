@@ -19,7 +19,7 @@
       "wa_green.jpg",
       "spacer.gif"
     ],
-    "_mergeTags": "Merge tags del ESP viejo → los de emBlue que usa el repo.",
+    "_mergeTags": "Aliases históricos para resolver nombres del ESP viejo. Los tokens finales se toman de references/variables.md y conservan SOH.",
     "mergeTags": {
       "nombre": "{$firstName}",
       "programa": "{$dataPrograma}",

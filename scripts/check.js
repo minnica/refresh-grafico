@@ -20,6 +20,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { formatWithInstalledExtension } = require('./format');
 
 function optionValue(argv, name) {
   const i = argv.indexOf(`--${name}`);
@@ -230,9 +231,20 @@ function runRules(file, text, ctx) {
   // R2 — merge tags del ESP viejo. markdown-it-attrs se come el {...} y deja
   //      el prefijo suelto como texto visible en el correo.
   if (ctx.wants('mergetag')) {
-    eachLine(text, /\$[A-Za-z]{1,6}\{([^}]*)\}/g, (m, line) => {
+    eachLine(text, /\$[A-Za-z]{1,6}\{[^}]*\}|\$\{BF[^}]*\}/gi, (m, line) => {
       add('mergetag', 'error', line, `merge tag del ESP viejo: ${m[0]}`,
         'markdown-it-attrs se comerá las llaves y dejará el prefijo como texto visible');
+    });
+
+    eachLine(text, /\{\$[^}\n]+\}/g, (m, line, sourceLine) => {
+      const start = m.index;
+      const end = start + m[0].length;
+      const isBold = sourceLine.slice(Math.max(0, start - 2), start) === '**' &&
+        sourceLine.slice(end, end + 2) === '**';
+      if (!isBold) {
+        add('mergetag', 'error', line, `variable sin negrita: ${m[0]}`,
+          `usa **${m[0]}** y conserva intactos todos sus caracteres`);
+      }
     });
   }
 
@@ -279,7 +291,20 @@ function runRules(file, text, ctx) {
     add('vacio', 'info', 1, 'sin bloques de contenido — preparado pero sin convertir');
   }
 
-  // R7 — contenido perdido o inventado, comparando contra el HTML de origen.
+  // R7 — formato exacto de la extensión VT Email DSL instalada.
+  if (ctx.wants('format')) {
+    try {
+      const formatted = formatWithInstalledExtension(text, ctx.formatOptions);
+      if (formatted !== text) {
+        add('format', 'error', 1, 'el archivo no tiene el formato de VT Email DSL',
+          'ejecuta scripts/format.js sobre el manifest antes de validar');
+      }
+    } catch (error) {
+      add('format', 'error', 1, `no se pudo ejecutar VT Email DSL: ${error.message}`);
+    }
+  }
+
+  // R8 — contenido perdido o inventado, comparando contra el HTML de origen.
   //      Sólo corre si el .html sigue en src/; al borrarlo, la regla se apaga.
   const srcHtml = ctx.sourceHtml.get(base);
   if (ctx.wants('texto') && srcHtml) {
@@ -348,9 +373,11 @@ check.js — valida los .md de contenido
                    (default: directorio de trabajo actual)
   --only <texto>   Sólo los archivos cuya ruta contenga <texto>
   --rule <id>      Sólo una regla: css | mergetag | assets | permalink |
-                   frontmatter | vacio | texto
+                   frontmatter | vacio | format | texto
   --threshold <n>  Umbral de la regla "texto" (0–1, por defecto 0.6).
                    Más alto = más estricto = más ruido.
+  --tab-size <n>   Indentación de VT Email DSL (default: 2).
+  --tabs           Valida indentación con tabs en vez de espacios.
   --quiet          Omite los archivos sin hallazgos y los informativos
   --help           Esta ayuda
 
@@ -371,6 +398,10 @@ contenido perdido o inventado. Si el .html de origen ya no está, no corre.
     threshold: Number(opt('threshold') || textCfg.threshold || 0.6),
     minWords: Number(textCfg.minWords || 5),
     textIgnore: (textCfg.ignore || []).map((s) => normalizeText(s)),
+    formatOptions: {
+      tabSize: Number(opt('tab-size') || 2),
+      insertSpaces: !has('tabs'),
+    },
     // HTML de origen indexado por basename: src/<nombre>.html
     sourceHtml: new Map(
       fs
