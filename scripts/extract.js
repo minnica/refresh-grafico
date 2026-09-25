@@ -21,26 +21,30 @@
 const fs = require('fs');
 const path = require('path');
 const { ensureWorkspaceState, resolveWorkspaceState } = require('./runtime');
+const { resolveUniversity } = require('./config');
 
 function optionValue(argv, name) {
   const i = argv.indexOf(`--${name}`);
   return i !== -1 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : null;
 }
 
-const ROOT = path.resolve(optionValue(process.argv.slice(2), 'root') || process.cwd());
+const ARGV = process.argv.slice(2);
+const ROOT = path.resolve(optionValue(ARGV, 'root') || process.cwd());
 const SRC = path.join(ROOT, 'src');
 const CONFIG_PATH = path.join(__dirname, 'prepare.config.json');
 const ASSET_CATALOG_PATH = path.join(__dirname, '..', 'references', 'assets.json');
 const VARIABLE_DICTIONARY_PATH = path.join(__dirname, '..', 'references', 'variables.md');
 const STATE = resolveWorkspaceState(ROOT);
 
-const cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+const { id: UNIVERSITY, config: cfg } = resolveUniversity(ROOT, optionValue(ARGV, 'university'));
 const EX = cfg.extract;
 const assetCatalog = JSON.parse(fs.readFileSync(ASSET_CATALOG_PATH, 'utf8'));
 if (!Array.isArray(assetCatalog.files)) {
   throw new Error(`${ASSET_CATALOG_PATH} debe contener un arreglo "files".`);
 }
-const CURATED_ASSETS = [...new Set(assetCatalog.files)];
+const CURATED_ASSETS = assetCatalog.scope === EX.assetCatalogScope
+  ? [...new Set(assetCatalog.files)]
+  : [];
 
 const deaccent = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
 
@@ -238,7 +242,7 @@ function sections(html) {
 
 // ─── mapeos ──────────────────────────────────────────────────────────────────
 
-const ASSET_NOISE = new Set(['icon', 'img', 'image', 'logo', 'ulatina', 'white', 'wine']);
+const ASSET_NOISE = new Set(['icon', 'img', 'image', 'logo', 'ulatina', 'unapec', 'white', 'wine', 'blue']);
 
 function assetUrl(base) {
   const sub = /logo|icon/i.test(base) ? EX.iconsPath + '/' : '';
@@ -455,6 +459,7 @@ extract.js — reduce HTML viejos a briefs compactos
 
   --root <ruta>  Raíz del repositorio que se procesará.
                  (default: directorio de trabajo actual)
+  --university <id> Universidad; si se omite, se autodetecta.
   --all          Procesa todos los .html del nivel superior de src/ y guarda
                  los briefs en el estado privado de la skill.
   --out <ruta>   Sobrescribe la carpeta de salida (admite ruta absoluta).
@@ -484,6 +489,7 @@ También puedes pasar uno o más archivos .html en lugar de --all.
   }
 
   const catalog = buildCatalog(SRC);
+  console.log(`  Universidad: ${UNIVERSITY}`);
 
   if (outDir && !requestedOutDir) {
     ensureWorkspaceState(STATE);

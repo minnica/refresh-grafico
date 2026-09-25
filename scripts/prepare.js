@@ -24,9 +24,9 @@
 const fs = require('fs');
 const path = require('path');
 const { ensureWorkspaceState, resolveWorkspaceState, writeJsonAtomic } = require('./runtime');
+const { CONFIG_PATH, resolveContentProfile, resolveUniversity } = require('./config');
 
 const ROOT = path.resolve(parseArgs(process.argv.slice(2)).opts.root || process.cwd());
-const CONFIG_PATH = path.join(__dirname, 'prepare.config.json');
 const STATE = resolveWorkspaceState(ROOT);
 const MANIFEST_PATH = STATE.manifestPath;
 
@@ -39,6 +39,7 @@ prepare.js — prepara el lote de .md para el flujo REFRESH GRÁFICO
                        Ej: src/maestrias/retencion
   --from <ruta>        Carpeta donde están los .html sueltos. (default: src)
   --permalink <base>   Sobrescribe el permalinkBase del perfil.
+  --university <id>    Selecciona universidad; si se omite, se autodetecta.
                        Ej: maestrias/retencion/funnel
   --only <texto>       Procesa sólo los .html cuyo nombre contenga <texto>.
   --dry                No escribe nada; sólo muestra qué haría.
@@ -73,42 +74,6 @@ function parseArgs(argv) {
 }
 
 // ─── config ──────────────────────────────────────────────────────────────────
-
-function loadConfig() {
-  if (!fs.existsSync(CONFIG_PATH)) {
-    fail(`No encuentro ${rel(CONFIG_PATH)}`);
-  }
-  try {
-    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-  } catch (e) {
-    fail(`${rel(CONFIG_PATH)} no es JSON válido: ${e.message}`);
-  }
-}
-
-/**
- * Busca el perfil de `dest`. Si no hay match exacto, hereda del ancestro más
- * cercano: así una subcarpeta nueva (src/maestrias/retencion/enrolled) toma
- * el perfil de su padre sin tener que declararla.
- */
-function resolveProfile(dest, config) {
-  const norm = dest.replace(/\/+$/, '');
-  if (config.profiles[norm]) {
-    return { profile: config.profiles[norm], matchedOn: norm, inherited: false };
-  }
-  const candidates = Object.keys(config.profiles)
-    .filter((p) => norm.startsWith(p + '/'))
-    .sort((a, b) => b.length - a.length);
-
-  if (candidates.length === 0) {
-    fail(
-      `No hay perfil para "${norm}".\n` +
-        `  Perfiles disponibles:\n` +
-        Object.keys(config.profiles).map((p) => `    ${p}`).join('\n') +
-        `\n  Agrega uno nuevo en ${rel(CONFIG_PATH)} o usa una subcarpeta de los anteriores.`
-    );
-  }
-  return { profile: config.profiles[candidates[0]], matchedOn: candidates[0], inherited: true };
-}
 
 // ─── generación ──────────────────────────────────────────────────────────────
 
@@ -172,8 +137,14 @@ function main() {
   const dest = args.opts.dest;
   if (!dest) fail('Falta --dest. Usa --help para ver el uso.');
 
-  const config = loadConfig();
-  const { profile, matchedOn, inherited } = resolveProfile(dest, config);
+  let resolved;
+  try {
+    resolved = resolveUniversity(ROOT, args.opts.university);
+  } catch (error) {
+    fail(error.message);
+  }
+  const { id: university, config } = resolved;
+  const { profile, matchedOn, inherited } = resolveContentProfile(dest, config);
 
   const fromDir = path.resolve(ROOT, args.opts.from || 'src');
   const destDir = path.resolve(ROOT, dest);
@@ -206,6 +177,7 @@ function main() {
   console.log('');
   console.log(`  ${c.bold('Lote:')}      ${htmlFiles.length} html en ${c.bold(rel(fromDir))}`);
   console.log(`  ${c.bold('Destino:')}   ${rel(destDir)}`);
+  console.log(`  ${c.bold('Universidad:')} ${university}`);
   console.log(`  ${c.bold('Permalink:')} ${permalinkBase}/`);
   console.log(
     `  ${c.bold('Perfil:')}    ${profile.layout} · ${profile.headerConfig} · ${profile.footerConfig}` +
@@ -280,6 +252,7 @@ function main() {
     generatedAt: new Date().toISOString(),
     repoRoot: STATE.repoRoot,
     branch: STATE.branch,
+    university,
     from: rel(fromDir),
     dest: rel(destDir),
     permalinkBase,

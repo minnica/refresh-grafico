@@ -21,6 +21,8 @@
 const fs = require('fs');
 const path = require('path');
 const { formatWithInstalledExtension } = require('./format');
+const { resolveUniversity } = require('./config');
+const { resolveWorkspaceState } = require('./runtime');
 
 function optionValue(argv, name) {
   const i = argv.indexOf(`--${name}`);
@@ -29,7 +31,6 @@ function optionValue(argv, name) {
 
 const ROOT = path.resolve(optionValue(process.argv.slice(2), 'root') || process.cwd());
 const SRC = path.join(ROOT, 'src');
-const CONFIG_PATH = path.join(__dirname, 'prepare.config.json');
 
 // Carpetas de src/ que no son contenido.
 const NOT_CONTENT = new Set(['_includes', '_layouts', '_content', '_data']);
@@ -307,8 +308,11 @@ function runRules(file, text, ctx) {
   // R8 — contenido perdido o inventado, comparando contra el HTML de origen.
   //      Sólo corre si el .html sigue en src/; al borrarlo, la regla se apaga.
   const srcHtml = ctx.sourceHtml.get(base);
-  if (ctx.wants('texto') && srcHtml) {
-    const origPlain = stripHtml(fs.readFileSync(srcHtml, 'utf8'));
+  const srcBrief = ctx.sourceBrief.get(rel.replace(/\\/g, '/'));
+  if (ctx.wants('texto') && (srcHtml || srcBrief)) {
+    const origPlain = srcHtml
+      ? stripHtml(fs.readFileSync(srcHtml, 'utf8'))
+      : (fs.readFileSync(srcBrief, 'utf8').split('## Contenido literal')[1] || '');
     const mdPlain = stripMd(text);
 
     const origWords = new Set(words(origPlain));
@@ -324,7 +328,7 @@ function runRules(file, text, ctx) {
       if (cov < ctx.threshold) {
         add('texto', 'warn', 1,
           `posible contenido PERDIDO (${Math.round(cov * 100)}% presente): "${s.raw.slice(0, 90)}${s.raw.length > 90 ? '…' : ''}"`,
-          `origen: ${path.relative(ROOT, srcHtml)}`);
+          `origen: ${srcHtml ? path.relative(ROOT, srcHtml) : srcBrief}`);
       }
     }
 
@@ -371,6 +375,7 @@ check.js — valida los .md de contenido
 
   --root <ruta>    Raíz del repositorio que se procesará.
                    (default: directorio de trabajo actual)
+  --university <id> Universidad; si se omite, se autodetecta.
   --only <texto>   Sólo los archivos cuya ruta contenga <texto>
   --rule <id>      Sólo una regla: css | mergetag | assets | permalink |
                    frontmatter | vacio | format | texto
@@ -389,7 +394,7 @@ contenido perdido o inventado. Si el .html de origen ya no está, no corre.
 
   const onlyRule = opt('rule');
   const quiet = has('quiet');
-  const cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  const { id: university, config: cfg } = resolveUniversity(ROOT, opt('university'));
   const textCfg = cfg.textCheck || {};
 
   const ctx = {
@@ -409,7 +414,16 @@ contenido perdido o inventado. Si el .html de origen ya no está, no corre.
         .filter((e) => e.isFile() && e.name.toLowerCase().endsWith('.html'))
         .map((e) => [e.name.replace(/\.html$/i, ''), path.join(SRC, e.name)])
     ),
+    sourceBrief: new Map(),
   };
+
+  const state = resolveWorkspaceState(ROOT);
+  if (fs.existsSync(state.manifestPath)) {
+    const manifest = JSON.parse(fs.readFileSync(state.manifestPath, 'utf8'));
+    for (const pair of manifest.pairs || []) {
+      if (pair.brief) ctx.sourceBrief.set(String(pair.md).replace(/\\/g, '/'), pair.brief);
+    }
+  }
 
   const { classes, stylesCssFound } = loadValidClasses();
   ctx.validClasses = classes;
@@ -419,6 +433,7 @@ contenido perdido o inventado. Si el .html de origen ya no está, no corre.
     console.log(c.yellow('\n  ⚠ No existe public/css/styles.css — la regla de clases CSS queda desactivada.'));
     console.log(c.dim('    Corre `npm run build` para generarlo.\n'));
   }
+  console.log(c.dim(`\n  Universidad: ${university}`));
 
   let files = collectMd(SRC);
   const filter = opt('only');

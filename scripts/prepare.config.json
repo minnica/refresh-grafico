@@ -1,77 +1,52 @@
 {
-  "_comment": "Configuración central usada actualmente por los scripts incluidos en la skill.",
-  "_pending": "PENDIENTE: diseñar selección de configuración por repositorio/universidad (por ejemplo, perfiles nombrados o --config) antes de generalizar la skill. Hasta entonces todos los repositorios comparten estos valores y deben comprobarse antes de ejecutar el pipeline.",
-
-  "importLine": "{%- import \"src/_content/ulatina_general_config.njk\" as config -%}",
-
-  "_extract": "Usado por extract.js para armar el brief de cada HTML viejo.",
-  "extract": {
-    "assetBase": "https://ap-university-storage.s3.us-east-1.amazonaws.com/ulatina",
-    "iconsPath": "icons",
-    "_frameworkAssets": "Imágenes que ya ponen el header, el footer o los presets de botón. NO deben aparecer en el .md.",
-    "frameworkAssets": [
-      "icon_email_white.png",
-      "icon_phone_white.png",
-      "icon_wa_white.png",
-      "logo_ulatina_white.png",
-      "logo_ulatina_arizona.png",
-      "logo_ulatina_maestria.png",
-      "wa_green.jpg",
-      "spacer.gif"
-    ],
-    "_mergeTags": "Aliases históricos para resolver nombres del ESP viejo. Los tokens finales se toman de references/variables.md y conservan SOH.",
-    "mergeTags": {
-      "nombre": "{$firstName}",
-      "programa": "{$dataPrograma}",
-      "fechainicioclases": "{$dataFechaInicioClases}"
+  "schemaVersion": 2,
+  "universities": {
+    "ulatina": {
+      "requiredConfig": "src/_content/ulatina_general_config.njk",
+      "importLine": "{%- import \"src/_content/ulatina_general_config.njk\" as config -%}",
+      "moduleNamespace": "ulatina",
+      "extract": {
+        "assetBase": "https://ap-university-storage.s3.us-east-1.amazonaws.com/ulatina",
+        "iconsPath": "icons",
+        "assetCatalogScope": "universidad:ulatina",
+        "frameworkAssets": ["icon_email_white.png", "icon_phone_white.png", "icon_wa_white.png", "logo_ulatina_white.png", "logo_ulatina_arizona.png", "logo_ulatina_maestria.png", "wa_green.jpg", "spacer.gif"],
+        "mergeTags": {"nombre": "{$firstName}", "programa": "{$dataPrograma}", "fechainicioclases": "{$dataFechaInicioClases}"},
+        "canonicalWhatsapp": "50640017234"
+      },
+      "textCheck": {"threshold": 0.6, "minWords": 5, "ignore": ["derechos reservados", "onlineulatina", "si no deseas recibir", "desuscribir", "politica de privacidad", "todos los derechos"]},
+      "profiles": {
+        "src/maestrias/ventas": {"layout": "base.njk", "headerConfig": "maestrias", "footerConfig": "maestrias", "isResponsive": true, "permalinkBase": "maestrias/ventas/funnel"},
+        "src/maestrias/retencion": {"layout": "base_rt.njk", "headerConfig": "maestriasrt", "footerConfig": "maestrias", "isResponsive": true, "permalinkBase": "maestrias/retencion/permanencia"},
+        "src/masters/vt": {"layout": "base_masters.njk", "headerConfig": "masters", "footerConfig": "maestrias", "isResponsive": true, "permalinkBase": "masters/ventas/funnel"},
+        "src/masters/rt": {"layout": "base_masters_rt.njk", "headerConfig": "mastersrt", "footerConfig": "maestrias", "isResponsive": true, "permalinkBase": "masters/rt"}
+      }
     },
-    "_canonicalWhatsapp": "Número vigente. Los HTML viejos traen números caducos: se sustituyen, no se copian.",
-    "canonicalWhatsapp": "50640017234"
-  },
-
-  "_textCheck": "Regla `texto` de check.js: compara el .md contra su .html de origen. `ignore` lista texto que el layout/footer ya provee y que por tanto NO debe aparecer en el .md — sin esto todo el boilerplate se reportaría como contenido perdido.",
-  "textCheck": {
-    "threshold": 0.6,
-    "minWords": 5,
-    "ignore": [
-      "derechos reservados",
-      "onlineulatina",
-      "si no deseas recibir",
-      "desuscribir",
-      "politica de privacidad",
-      "https://online.ulatina.cr/file/pdf/ULATINA%20_G_Kit_NuevosEstudiantes.pdf",
-      "todos los derechos"
-    ]
-  },
-
-  "profiles": {
-    "src/maestrias/ventas": {
-      "layout": "base.njk",
-      "headerConfig": "maestrias",
-      "footerConfig": "maestrias",
-      "isResponsive": true,
-      "permalinkBase": "maestrias/ventas/funnel"
-    },
-    "src/maestrias/retencion": {
-      "layout": "base_rt.njk",
-      "headerConfig": "maestriasrt",
-      "footerConfig": "maestrias",
-      "isResponsive": true,
-      "permalinkBase": "maestrias/retencion/permanencia"
-    },
-    "src/masters/vt": {
-      "layout": "base_masters.njk",
-      "headerConfig": "masters",
-      "footerConfig": "maestrias",
-      "isResponsive": true,
-      "permalinkBase": "masters/ventas/funnel"
-    },
-    "src/masters/rt": {
-      "layout": "base_masters_rt.njk",
-      "headerConfig": "mastersrt",
-      "footerConfig": "maestrias",
-      "isResponsive": true,
-      "permalinkBase": "masters/rt"
+    "unapec": {
+      "requiredConfig": "src/_content/unapec_general_config.njk",
+      "importLine": "{%- import \"src/_content/unapec_general_config.njk\" as config -%}",
+      "moduleNamespace": "unapec",
+      "extract": {
+        "assetBase": "https://ap-university-storage.s3.us-east-1.amazonaws.com/unapec",
+        "iconsPath": "icons",
+        "assetCatalogScope": "universidad:unapec",
+        "frameworkAssets": ["logo_unapec_white.png", "logo_unapec_black.png", "icon_email_black.png", "icon_phone_black.png", "icon_wa_black.png", "icon_wa_white.png"],
+        "mergeTags": {"nombre": "{$firstName}", "programa": "{$dataPrograma}", "fechainicioclases": "{$dataFechaInicioClases}"},
+        "canonicalWhatsapp": "18299463832"
+      },
+      "docx": {
+        "replacements": {
+          "{$dataFechaInicioClases}": "{$data\u0001FechaInicioClases}",
+          "[Fecha límite de inscripción]": "{$variable\u0001fecha_limite_inscripcion}",
+          "[Fecha límite de pago]": "{$variable\u0001fecha_pago}"
+        }
+      },
+      "textCheck": {"threshold": 0.6, "minWords": 5, "ignore": ["logo unapec", "footer", "tienes dudas", "info unapeconline do", "telefono", "whatsapp", "todos los derechos"]},
+      "profiles": {
+        "src/diplomados/ventas": {"layout": "base_diplomados.njk", "headerConfig": "diplomadosvt", "footerConfig": "diplomados", "isResponsive": true, "permalinkBase": "diplomados/ventas/funnel"},
+        "src/diplomados/retencion": {"layout": "base_diplomados_rt.njk", "headerConfig": "diplomadosrt", "footerConfig": "diplomados", "isResponsive": true, "permalinkBase": "diplomados/retencion/permanencia"},
+        "src/maestrias/ventas": {"layout": "base_maestrias.njk", "headerConfig": "maestriasvt", "footerConfig": "maestrias", "isResponsive": true, "permalinkBase": "maestrias/ventas/funnel"},
+        "src/maestrias/retencion": {"layout": "base_maestrias_rt.njk", "headerConfig": "maestriasrt", "footerConfig": "maestriasrt", "isResponsive": true, "permalinkBase": "maestrias/retencion/permanencia"}
+      }
     }
   }
 }

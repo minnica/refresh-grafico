@@ -189,9 +189,9 @@ este archivo están en `../SKILL.md`.
 - Síntoma: `check.js` reporta como inexistentes todas las clases CSS válidas del UI-kit, aunque las piezas usan clases presentes en `styles.scss` y el build termina correctamente.
 - Causa: `public/css/styles.css` queda en 0 bytes después del build asíncrono de esta configuración de Eleventy; como el archivo existe, el validador lo toma como fuente disponible pero no puede extraer ninguna clase generada.
 - Solución: Después del build y antes de la validación final, compilar `src/_includes/css/styles.scss` con Sass mediante una escritura síncrona a `public/css/styles.css`; no desactivar la regla CSS ni eliminar las clases de las piezas.
-- Verificación: La compilación síncrona generó 44,954 bytes de CSS; las mismas piezas que antes acumulaban errores de clases pasaron después `check.js --only`, y el recorrido final aprobó 26 de 26 archivos tras un build de Eleventy de 146 archivos. En otro lote, la recompilación síncrona dejó 44,955 bytes y permitió validar 49 de 49 piezas tras un build de Eleventy de 195 archivos. En la revisión manual posterior, el CSS volvió a vaciarse durante el recorrido; recompilar Sass de forma síncrona antes de cada validación estabilizó 39 de 39 piezas corregidas después de un build de 194 archivos.
+- Verificación: La compilación síncrona generó 44,954 bytes de CSS; las mismas piezas que antes acumulaban errores de clases pasaron después `check.js --only`, y el recorrido final aprobó 26 de 26 archivos tras un build de Eleventy de 146 archivos. En otro lote, la recompilación síncrona dejó 44,955 bytes y permitió validar 49 de 49 piezas tras un build de Eleventy de 195 archivos. En la revisión manual posterior, el CSS volvió a vaciarse durante el recorrido; recompilar Sass de forma síncrona antes de cada validación estabilizó 39 de 39 piezas corregidas después de un build de 194 archivos. En un lote UNPHU, el CSS volvió a quedar temporalmente sin clases durante la sexta validación posterior a un build de 74 archivos; recompilar Sass de forma síncrona antes de cada `check.js --only` estabilizó 16 de 16 piezas.
 - No aplicar cuando: `public/css/styles.css` ya tenga contenido válido, el repositorio use otra fuente de estilos o una versión futura del build espere correctamente la escritura antes de finalizar.
-- Confirmaciones: 3
+- Confirmaciones: 4
 
 ## RG-20260810-20
 
@@ -222,3 +222,33 @@ este archivo están en `../SKILL.md`.
 - Verificación: Trece piezas redujeron títulos secundarios de `.fs-22` a `.fs-18` o `.fs-16`, corrigieron alineación y separaron el uso de color primario frente a base; todas pasaron `check.js --only` y el build de Eleventy de 194 archivos.
 - No aplicar cuando: Una referencia o instrucción de mayor precedencia defina otra jerarquía, el bloque sea un hero o callout autónomo, o el cambio de escala no corresponda al rol semántico del contenido.
 - Confirmaciones: 13
+
+## RG-20260917-23
+
+- Alcance: `repositorio:emails-ap`
+- Síntoma: Al preparar un DOCX, una pieza intenta sobrescribir un `.md` de un lote anterior porque su etiqueta interna `Copy` pertenece por error a otra población.
+- Causa: `prepare-docx.js` deriva el nombre de destino de la etiqueta interna del documento, aunque el nombre del DOCX y las piezas contiguas indiquen otra población.
+- Solución: Detenerse ante la colisión, confirmar con el usuario el nombre correcto, preservar el archivo existente y corregir de forma consistente la ruta del `.md`, su permalink y el par correspondiente del manifest antes de formatear, validar y crear el snapshot.
+- Verificación: En maestrías, la pieza anterior se comparó byte a byte con su baseline y quedó intacta; las tres piezas del lote corregido pasaron `check.js --only`, y el build de Eleventy generó 232 archivos. El mismo conflicto se confirmó después en diplomados: se preservó la pieza activa, se corrigió el destino pasivo, las tres piezas pasaron `check.js --only` y el build generó 233 archivos.
+- No aplicar cuando: La sobrescritura sea intencional y esté autorizada, el nombre interno corresponda realmente a la población de destino o no exista una colisión con contenido previo.
+- Confirmaciones: 2
+
+## RG-20260917-24
+
+- Alcance: `universidad:udla`
+- Síntoma: El build de Eleventy falla al leer el frontmatter con `YAMLException` cuando un asunto de Infobip contiene un token canónico cuyo namespace usa el byte SOH.
+- Causa: YAML no admite el carácter de control SOH dentro de un scalar entre comillas, mientras que el documento de UDLA define explícitamente los campos personalizables de asunto con la sintaxis de Infobip `{{…}}`.
+- Solución: En asuntos de piezas UDLA destinadas a Infobip, conservar literalmente los placeholders `{{…}}` del DOCX y no envolverlos en Markdown; seguir usando los tokens canónicos completos, con SOH real y negrita, en el cuerpo del email.
+- Verificación: Dos piezas conservaron los placeholders de Infobip en `subject1`–`subject4`, pasaron `check.js --only` sin hallazgos y compilaron correctamente en un build de Eleventy de 204 archivos. Cuatro piezas adicionales de Licenciaturas conservaron la misma sintaxis en sus asuntos y quedaron dentro de un lote de seis emails que pasó `check.js --only` y compiló en un build de 42 archivos.
+- No aplicar cuando: El asunto no vaya a Infobip, el origen use otra sintaxis de personalización o la plataforma acepte de forma comprobada el token canónico sin introducir caracteres de control inválidos en YAML.
+- Confirmaciones: 5
+
+## RG-20260917-25
+
+- Alcance: `universidad:udla`
+- Síntoma: `prepare-docx.js` no separa correctamente las piezas o incorpora instrucciones del brief dentro del cuerpo cuando un DOCX de Nautilus usa encabezados como `Copy Email N`, `Subject:` en una línea independiente, `Subject line:` o varios asuntos unidos por ` o `.
+- Causa: El documento no sigue el contrato estructural `Subject:` + `Copy:` que espera el preparador; además, algunas instrucciones de la pieza siguiente aparecen antes de su asunto y no sirven como límite confiable del cuerpo anterior.
+- Solución: Antes de ejecutar el preparador, normalizar cada bloque lógico a un primer `Subject:`, alternativas `Subject 2:`, un `Copy:` estable, el contenido delimitado entre `Cuerpo del Email:` y el primer CTA, las etiquetas de botones sin sus marcadores editoriales y un cierre `FOOTER`. Cuando el lote provenga de varios DOCX, combinar después sus pares y briefs en un único manifest sin alterar los `.md` ya procesados.
+- Verificación: Dos DOCX con cuatro piezas de permanencia y dos de recuperación se normalizaron y combinaron; las seis piezas conservaron sus asuntos, cuerpos y CTA, pasaron el formateador oficial y `check.js --only`, y compilaron en un build de Eleventy de 42 archivos.
+- No aplicar cuando: El DOCX ya use la estructura estándar de la skill, las líneas editoriales formen parte explícita del contenido o los límites de cuerpo y CTA no puedan determinarse sin una decisión humana.
+- Confirmaciones: 1

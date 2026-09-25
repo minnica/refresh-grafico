@@ -1,12 +1,13 @@
 ---
 name: refresh-grafico
-description: Convierte HTML de emails viejos al DSL de repositorios compatibles (11ty + Nunjucks), generando archivos .md en src/. Usar cuando el usuario pida actualizar, migrar, refrescar o maquetar piezas de correo a partir de HTML antiguos, mencione "refresh gráfico", invoque $refresh-grafico, incluya `Referencia:[ruta]` para tomar archivos existentes como guía visual o pida aprender de sus correcciones manuales. Cubre el lote completo, desde la preparación hasta la validación y el aprendizaje verificado, incluido el trabajo desatendido de lotes grandes.
+description: Convierte HTML o DOCX con varios emails al DSL de repositorios compatibles (11ty + Nunjucks), generando archivos .md en src/. Selecciona perfiles por universidad y repositorio. Usar cuando el usuario pida actualizar, migrar, refrescar o maquetar piezas de correo, mencione "refresh gráfico", invoque $refresh-grafico, incluya `Referencia:[ruta]` o pida aprender de sus correcciones manuales.
 ---
 
 # Refresh gráfico de emails
 
-Convertir HTML de correos antiguos en archivos `.md` que compilen con el DSL del
-repositorio activo. **No reescribir nunca el texto**: trasladarlo literalmente.
+Convertir HTML de correos antiguos o documentos DOCX con varias piezas en archivos
+`.md` que compilen con el DSL del repositorio activo. **No reescribir nunca el
+texto**: trasladarlo literalmente.
 
 ## Regla de agente único
 
@@ -23,11 +24,13 @@ Los scripts pertenecen a esta skill, no al repositorio activo. Antes de empezar:
 
 1. Resuelve la ruta absoluta del directorio que contiene este `SKILL.md`; ése es
    `<skill-dir>` en los comandos de este documento.
-2. Comprueba que la skill incluya `scripts/prepare.js`, `scripts/extract.js`,
+2. Comprueba que la skill incluya `scripts/prepare.js`, `scripts/prepare-docx.js`, `scripts/extract.js`,
    `scripts/format.js`, `scripts/check.js`, `scripts/review.js`, `scripts/runtime.js`,
-   `scripts/prepare.config.json`, `references/assets.json` y
+   `scripts/config.js`, `scripts/prepare.config.json`, `references/assets.json` y
    `references/variables.md` y `references/lessons.md`.
-3. Desde la raíz del repositorio activo, comprueba que exista
+3. Resuelve la universidad con `--university <id>` o por autodetección. Comprueba
+   que exista el `requiredConfig` de ese perfil. Para UNAPEC es
+   `src/_content/unapec_general_config.njk`; para ULATINA,
    `src/_content/ulatina_general_config.njk`.
 
 El repositorio activo **no necesita una carpeta `scripts/`**. Si falta un archivo
@@ -244,10 +247,13 @@ Seis pasos. Los pasos 1, 2, 4, 5 y 6 son scripts deterministas — no los hagas 
 mano ni improvises su resultado.
 
 ```bash
-# 1. Prepara los .md con frontmatter y permalink ya resueltos
+# 1a. HTML: prepara los .md con frontmatter y permalink ya resueltos
 node "<skill-dir>/scripts/prepare.js" --root "<repo-root>" --dest src/maestrias/retencion
 
-# 2. Reduce cada HTML a un brief compacto (quita el ~90% de markup)
+# 1b. DOCX con varias piezas: separa por bloques Subject y crea briefs + manifest
+node "<skill-dir>/scripts/prepare-docx.js" --root "<repo-root>" --source "src/documento.docx" --dest src/diplomados/retencion/permanencia --university unapec
+
+# 2. Sólo HTML: reduce cada HTML a un brief compacto (quita el ~90% de markup)
 node "<skill-dir>/scripts/extract.js" --root "<repo-root>" --all
 
 # 3. Convertir  ← lo único que haces tú, con este documento
@@ -335,6 +341,12 @@ arrastres el contenido completo de emails ya validados.
 
 El frontmatter ya lo generó `prepare.js`: **no lo toques**. Debajo del
 `{%- import %}` van los bloques.
+
+Los ejemplos siguientes muestran ULATINA. Usa siempre `moduleNamespace`,
+presets, clases y paleta del perfil seleccionado. Para UNAPEC los módulos viven
+en `modules/unapec/`, las clases de marca comienzan con `.unapec-` y los presets
+se leen de `src/_content/unapec_general_config.njk`; no traslades nombres de
+presets o colores de ULATINA.
 
 ```
 {%- setBlock "Hero", {
@@ -479,14 +491,15 @@ footer, no lo agregues al `.md`. Registra el texto como candidato para
 `textCheck.ignore` y como aprendizaje verificado cuando corresponda; no
 modifiques automáticamente `<skill-dir>/scripts/prepare.config.json`.
 
-## Pendiente: configuración multi-repositorio
+## Configuración multiuniversidad
 
-`scripts/prepare.config.json` vive ahora dentro de la skill y es compartido por
-todos los repositorios donde se use. Queda pendiente diseñar una selección de
-configuración por repositorio o universidad —por ejemplo, perfiles nombrados o
-una opción `--config`— para independizar `importLine`, perfiles de frontmatter,
-assets, merge tags, textos ignorados y WhatsApp.
+`scripts/prepare.config.json` contiene perfiles nombrados. Los scripts aceptan
+`--university <id>` y también autodetectan el perfil cuando sólo uno de sus
+`requiredConfig` existe. Cada universidad mantiene separados `importLine`,
+namespace de módulos, frontmatter, assets, merge tags, textos ignorados y
+WhatsApp. Si la detección es nula o ambigua, detenerse y pedir el id; nunca
+reutilizar silenciosamente valores de otra universidad.
 
-Hasta resolverlo, antes de ejecutar el pipeline compara esa configuración con el
-repositorio activo. Si no corresponde, detente y pregunta; no modifiques el
-repositorio ni reutilices silenciosamente valores de otra universidad.
+Para DOCX, `prepare-docx.js` separa piezas por líneas `Subject:`, conserva los
+asuntos y preencabezado en frontmatter, genera briefs en `.state/` y omite las
+marcas `LOGO`, `CTA` y `FOOTER` del cuerpo porque son instrucciones estructurales.
